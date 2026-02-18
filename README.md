@@ -9,6 +9,18 @@ Bangify is a risk-first, evidence-driven DeFi/perps execution system.
 ## Current Objective
 Build a semi-auto MVP that can prove positive net expectancy after all costs (fees, slippage, funding), then scale safely.
 
+## Risk Engine (MVP)
+Implemented baseline modules:
+- risk-based position sizing
+- daily loss cap guard
+- kill-switch logic
+- pre-trade execution guard (leverage cap / open-risk cap / duplicate symbol block)
+
+Run tests:
+```bash
+python3 -m pytest
+```
+
 ## Operating Rules
 1. Real data only.
 2. No evidence, no scale.

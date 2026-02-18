@@ -10,6 +10,8 @@ class RiskEngineConfig:
     risk_percent: float
     daily_loss_cap_percent: float
     max_consecutive_losses: int = 3
+    max_open_risk_percent: float = 0.0075
+    max_leverage: float = 3.0
 
 
 @dataclass(frozen=True)

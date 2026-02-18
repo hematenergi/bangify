@@ -7,6 +7,7 @@ from .core import (
     RiskEngineConfig,
     calculate_position_size,
 )
+from .execution import ExecutionDecision, ExposureState, PreTradeGuard, TradeIntent
 
 __all__ = [
     "AccountState",
@@ -14,4 +15,8 @@ __all__ = [
     "RiskEngine",
     "RiskEngineConfig",
     "calculate_position_size",
+    "TradeIntent",
+    "ExposureState",
+    "ExecutionDecision",
+    "PreTradeGuard",
 ]
