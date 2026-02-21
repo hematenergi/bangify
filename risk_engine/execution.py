@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from uuid import uuid4
 
 from .core import AccountState, RiskEngine
 
@@ -66,3 +67,59 @@ class PreTradeGuard:
             return ExecutionDecision(False, rd.reason)
 
         return ExecutionDecision(True, "ok", suggested_size=rd.position_size)
+
+
+@dataclass(frozen=True)
+class DraftOrder:
+    intent: TradeIntent
+    size: float
+    client_order_id: str
+
+
+@dataclass(frozen=True)
+class ConfirmationToken:
+    value: str
+
+
+@dataclass(frozen=True)
+class ConfirmedOrder:
+    draft: DraftOrder
+    confirmation: ConfirmationToken
+
+
+class ExecutionWrapper:
+    """D3 scaffold: build draft order, require explicit pre-trade confirmation."""
+
+    def __init__(self, guard: PreTradeGuard) -> None:
+        self.guard = guard
+
+    def draft_order(
+        self,
+        state: AccountState,
+        intent: TradeIntent,
+        exposure: ExposureState,
+    ) -> tuple[ExecutionDecision, DraftOrder | None]:
+        decision = self.guard.evaluate(state=state, intent=intent, exposure=exposure)
+        if not decision.allowed:
+            return decision, None
+
+        draft = DraftOrder(
+            intent=intent,
+            size=decision.suggested_size,
+            client_order_id=f"draft-{uuid4().hex[:12]}",
+        )
+        return decision, draft
+
+    def confirm_order(
+        self,
+        draft: DraftOrder | None,
+        confirmation_text: str,
+    ) -> ConfirmedOrder:
+        if draft is None:
+            raise ValueError("draft_required")
+
+        normalized = confirmation_text.strip().upper()
+        if normalized != "CONFIRM":
+            raise ValueError("confirmation_required")
+
+        return ConfirmedOrder(draft=draft, confirmation=ConfirmationToken(value=normalized))
