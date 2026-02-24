@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from .core import AccountState, RiskEngine
+
+if TYPE_CHECKING:
+    from .journal import Journal
 
 
 @dataclass(frozen=True)
@@ -90,8 +94,9 @@ class ConfirmedOrder:
 class ExecutionWrapper:
     """D3 scaffold: build draft order, require explicit pre-trade confirmation."""
 
-    def __init__(self, guard: PreTradeGuard) -> None:
+    def __init__(self, guard: PreTradeGuard, journal: Journal | None = None) -> None:
         self.guard = guard
+        self.journal = journal
 
     def draft_order(
         self,
@@ -100,6 +105,10 @@ class ExecutionWrapper:
         exposure: ExposureState,
     ) -> tuple[ExecutionDecision, DraftOrder | None]:
         decision = self.guard.evaluate(state=state, intent=intent, exposure=exposure)
+
+        if self.journal:
+            self.journal.record_decision(decision, intent, exposure)
+
         if not decision.allowed:
             return decision, None
 
@@ -108,6 +117,10 @@ class ExecutionWrapper:
             size=decision.suggested_size,
             client_order_id=f"draft-{uuid4().hex[:12]}",
         )
+
+        if self.journal:
+            self.journal.record_draft(draft, decision)
+
         return decision, draft
 
     def confirm_order(
@@ -116,10 +129,19 @@ class ExecutionWrapper:
         confirmation_text: str,
     ) -> ConfirmedOrder:
         if draft is None:
+            if self.journal:
+                self.journal.record_rejection("draft_required")
             raise ValueError("draft_required")
 
         normalized = confirmation_text.strip().upper()
         if normalized != "CONFIRM":
+            if self.journal:
+                self.journal.record_rejection("confirmation_required", {"draft_id": draft.client_order_id})
             raise ValueError("confirmation_required")
 
-        return ConfirmedOrder(draft=draft, confirmation=ConfirmationToken(value=normalized))
+        confirmed = ConfirmedOrder(draft=draft, confirmation=ConfirmationToken(value=normalized))
+
+        if self.journal:
+            self.journal.record_confirmation(confirmed)
+
+        return confirmed
